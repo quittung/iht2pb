@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iht2pb"
+version = "0.1.0"
+description = "Command-line interface for Inkbird IHT-2PB BLE thermometer readings"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bleak>=2",
+]
+
+[project.scripts]
+iht2pb = "iht2pb.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
