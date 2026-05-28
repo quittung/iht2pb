@@ -43,6 +43,19 @@ Watch temperatures:
 .venv/bin/iht2pb watch
 ```
 
+Read alarm targets:
+
+```sh
+.venv/bin/iht2pb targets
+```
+
+Set an alarm target. Probe 1 is the built-in fold-out probe; probes 2 and 3
+are the external sockets:
+
+```sh
+.venv/bin/iht2pb set-target 1 200.0
+```
+
 If several devices are visible, pass the address printed by `scan`:
 
 ```sh
@@ -66,3 +79,7 @@ Exit after the first notification:
 The IHT-2PB does not broadcast temperature readings in advertisements. It must
 be connected over GATT notifications, so the phone app and this script should
 not be connected to the thermometer at the same time.
+
+Alarm targets use the same GATT notification stream. The device reports target
+packets during the startup/config burst after activation; writes go to `ffe9`
+as `55 aa <0d|0e|0f> 04 <target*10 hi> <target*10 lo> ff ff <checksum>`.
