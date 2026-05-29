@@ -17,10 +17,13 @@ from .protocol import (
     INIT_WRITES,
     NOTIFY_UUID,
     WRITE_UUID,
+    AlarmEnabled,
     AlarmTarget,
     ProbeReading,
+    decode_alarm_enabled,
     decode_alarm_target,
     decode_temperature,
+    encode_alarm_enabled,
     encode_alarm_target,
 )
 
@@ -110,6 +113,27 @@ def _print_targets(address: str, targets: dict[int, AlarmTarget], as_json: bool)
 
     for probe, target in sorted(targets.items()):
         print(f"probe_{probe}: {target.celsius:.1f} C")
+
+
+def _print_alarm_enabled(
+    address: str, enabled: dict[int, AlarmEnabled], as_json: bool
+) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "address": address,
+                    "alarm_enabled": {
+                        str(probe): state.enabled
+                        for probe, state in sorted(enabled.items())
+                    },
+                }
+            )
+        )
+        return
+
+    for probe, state in sorted(enabled.items()):
+        print(f"probe_{probe}: {'on' if state.enabled else 'off'}")
 
 
 def _bleak_target(found: FoundDevice) -> BLEDevice | str:
@@ -231,6 +255,38 @@ async def cmd_targets(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_alarm_enabled(args: argparse.Namespace) -> int:
+    selected = await _find_one(args)
+    if selected is None:
+        return 1
+
+    enabled: dict[int, AlarmEnabled] = {}
+    stop_event = asyncio.Event()
+
+    def on_notify(_sender: object, data: bytearray) -> None:
+        state = decode_alarm_enabled(data)
+        if state is None:
+            return
+        enabled[state.probe] = state
+        if len(enabled) == 3:
+            stop_event.set()
+
+    async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
+        await client.start_notify(NOTIFY_UUID, on_notify)
+        await _activate(client)
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=args.duration)
+        except TimeoutError:
+            pass
+
+    if not enabled:
+        print("No alarm enabled states received.", file=sys.stderr)
+        return 1
+
+    _print_alarm_enabled(selected.device.address, enabled, args.json)
+    return 0
+
+
 async def cmd_set_target(args: argparse.Namespace) -> int:
     selected = await _find_one(args)
     if selected is None:
@@ -277,6 +333,47 @@ async def cmd_set_target(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_set_alarm_enabled(args: argparse.Namespace) -> int:
+    selected = await _find_one(args)
+    if selected is None:
+        return 1
+
+    desired = args.state == "on"
+    payload = encode_alarm_enabled(args.probe, desired)
+    enabled: dict[int, AlarmEnabled] = {}
+    confirmed_event = asyncio.Event()
+    write_sent = False
+
+    def on_notify(_sender: object, data: bytearray) -> None:
+        nonlocal write_sent
+        state = decode_alarm_enabled(data)
+        if state is None:
+            return
+        enabled[state.probe] = state
+        if write_sent and state.probe == args.probe and state.enabled == desired:
+            confirmed_event.set()
+
+    async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
+        await client.start_notify(NOTIFY_UUID, on_notify)
+        await _activate(client)
+        await asyncio.sleep(0.5)
+        write_sent = True
+        try:
+            await client.write_gatt_char(WRITE_UUID, payload, response=True)
+        except BleakError:
+            await client.write_gatt_char(WRITE_UUID, payload, response=False)
+        try:
+            await asyncio.wait_for(confirmed_event.wait(), timeout=args.duration)
+        except TimeoutError:
+            enabled[args.probe] = AlarmEnabled(args.probe, desired)
+
+    if args.json:
+        _print_alarm_enabled(selected.device.address, {args.probe: enabled[args.probe]}, True)
+    else:
+        print(f"probe_{args.probe}: {'on' if enabled[args.probe].enabled else 'off'}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="iht2pb",
@@ -315,6 +412,28 @@ def build_parser() -> argparse.ArgumentParser:
     set_target.add_argument("--duration", type=float, default=5.0)
     set_target.add_argument("--json", action="store_true", help="print JSON")
     set_target.set_defaults(func=cmd_set_target)
+
+    alarm_enabled = subparsers.add_parser(
+        "alarm-enabled", help="read hardware alarm on/off states"
+    )
+    alarm_enabled.add_argument("--address", help="Bluetooth address from the scan command")
+    alarm_enabled.add_argument("--scan-timeout", type=float, default=DEFAULT_SCAN_TIMEOUT)
+    alarm_enabled.add_argument("--connect-timeout", type=float, default=30.0)
+    alarm_enabled.add_argument("--duration", type=float, default=5.0)
+    alarm_enabled.add_argument("--json", action="store_true", help="print JSON")
+    alarm_enabled.set_defaults(func=cmd_alarm_enabled)
+
+    set_alarm_enabled = subparsers.add_parser(
+        "set-alarm-enabled", help="turn a probe hardware alarm on or off"
+    )
+    set_alarm_enabled.add_argument("probe", type=int, choices=(1, 2, 3))
+    set_alarm_enabled.add_argument("state", choices=("on", "off"))
+    set_alarm_enabled.add_argument("--address", help="Bluetooth address from the scan command")
+    set_alarm_enabled.add_argument("--scan-timeout", type=float, default=DEFAULT_SCAN_TIMEOUT)
+    set_alarm_enabled.add_argument("--connect-timeout", type=float, default=30.0)
+    set_alarm_enabled.add_argument("--duration", type=float, default=5.0)
+    set_alarm_enabled.add_argument("--json", action="store_true", help="print JSON")
+    set_alarm_enabled.set_defaults(func=cmd_set_alarm_enabled)
 
     return parser
 

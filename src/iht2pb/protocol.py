@@ -14,6 +14,10 @@ INIT_WRITES = (
 TEMPERATURE_SELECTORS = {0x02: 1, 0x04: 2, 0x06: 3}
 TARGET_COMMANDS = {0x0D: 1, 0x0E: 2, 0x0F: 3}
 TARGET_COMMAND_BY_PROBE = {probe: command for command, probe in TARGET_COMMANDS.items()}
+ALARM_ENABLE_COMMANDS = {0x12: 1, 0x13: 2, 0x14: 3}
+ALARM_ENABLE_COMMAND_BY_PROBE = {
+    probe: command for command, probe in ALARM_ENABLE_COMMANDS.items()
+}
 
 TEMP_BASE = 255
 NEGATIVE_TEMP_HIGH_BYTE = 254
@@ -30,6 +34,12 @@ class ProbeReading:
 class AlarmTarget:
     probe: int
     celsius: float
+
+
+@dataclass(frozen=True)
+class AlarmEnabled:
+    probe: int
+    enabled: bool
 
 
 def checksum(payload: bytes | bytearray) -> int:
@@ -74,6 +84,23 @@ def decode_alarm_target(data: bytes | bytearray) -> AlarmTarget | None:
     return AlarmTarget(probe=probe, celsius=raw_target / 10)
 
 
+def decode_alarm_enabled(data: bytes | bytearray) -> AlarmEnabled | None:
+    if len(data) < 6:
+        return None
+    if data[0] != 0x55 or data[1] != 0xAA:
+        return None
+    if data[3] != 0x01:
+        return None
+    if checksum(data[:-1]) != data[-1]:
+        return None
+
+    probe = ALARM_ENABLE_COMMANDS.get(data[2])
+    if probe is None:
+        return None
+
+    return AlarmEnabled(probe=probe, enabled=data[4] != 0)
+
+
 def encode_alarm_target(probe: int, celsius: float) -> bytes:
     command = TARGET_COMMAND_BY_PROBE.get(probe)
     if command is None:
@@ -99,5 +126,15 @@ def encode_alarm_target(probe: int, celsius: float) -> bytes:
             0xFF,
         ]
     )
+    payload.append(checksum(payload))
+    return bytes(payload)
+
+
+def encode_alarm_enabled(probe: int, enabled: bool) -> bytes:
+    command = ALARM_ENABLE_COMMAND_BY_PROBE.get(probe)
+    if command is None:
+        raise ValueError("probe must be 1, 2, or 3")
+
+    payload = bytearray([0x55, 0xAA, command, 0x01, 0x01 if enabled else 0x00])
     payload.append(checksum(payload))
     return bytes(payload)
