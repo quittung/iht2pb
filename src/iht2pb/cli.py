@@ -5,6 +5,7 @@ import asyncio
 import json
 import signal
 import sys
+from datetime import datetime
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -22,13 +23,18 @@ from .protocol import (
     ProbeReading,
     decode_alarm_enabled,
     decode_alarm_target,
+    decode_activity_state,
+    decode_fahrenheit,
+    decode_hold_state,
     decode_temperature,
+    decode_temperature_state,
     encode_alarm_enabled,
     encode_alarm_target,
 )
 
 DEFAULT_SCAN_TIMEOUT = 10.0
 IHT2PB_NAME_FRAGMENT = "ink@iht-2pb"
+PALETTE = (31, 32, 33, 34, 35, 36, 91, 92, 93, 94, 95, 96)
 
 
 @dataclass(frozen=True)
@@ -66,6 +72,76 @@ def _format_temperature(value: object) -> str:
     if isinstance(value, int | float):
         return f"{value:.1f} C"
     return str(value)
+
+
+def _describe_notification(data: bytes | bytearray) -> dict[str, object]:
+    reading = decode_temperature(data)
+    if reading is not None:
+        return {"kind": "temperature", "probe": reading.probe, "celsius": reading.celsius}
+
+    fahrenheit = decode_fahrenheit(data)
+    if fahrenheit is not None:
+        return {
+            "kind": "fahrenheit",
+            "probe": fahrenheit.probe,
+            "fahrenheit": fahrenheit.fahrenheit,
+        }
+
+    temp_state = decode_temperature_state(data)
+    if temp_state is not None:
+        return {
+            "kind": "temperature_state",
+            "command": f"0x{temp_state.command:02x}",
+            "celsius": temp_state.celsius,
+        }
+
+    hold_state = decode_hold_state(data)
+    if hold_state is not None:
+        return {"kind": "hold_state", "held": hold_state.held}
+
+    activity_state = decode_activity_state(data)
+    if activity_state is not None:
+        return {"kind": "activity_state", "value": f"0x{activity_state.value:02x}"}
+
+    target = decode_alarm_target(data)
+    if target is not None:
+        return {"kind": "alarm_target", "probe": target.probe, "celsius": target.celsius}
+
+    enabled = decode_alarm_enabled(data)
+    if enabled is not None:
+        return {"kind": "alarm_enabled", "probe": enabled.probe, "enabled": enabled.enabled}
+
+    return {"kind": "unknown"}
+
+
+def _packet_summary(decoded: dict[str, object]) -> str:
+    kind = decoded["kind"]
+    if kind == "temperature":
+        return f"temperature probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
+    if kind == "fahrenheit":
+        return f"fahrenheit probe_{decoded['probe']} {decoded['fahrenheit']:.1f} F"
+    if kind == "temperature_state":
+        return f"temp_state {decoded['command']} {_format_temperature(decoded['celsius'])}"
+    if kind == "hold_state":
+        return f"hold {'on' if decoded['held'] else 'off'}"
+    if kind == "activity_state":
+        return f"activity {decoded['value']}"
+    if kind == "alarm_target":
+        return f"alarm_target probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
+    if kind == "alarm_enabled":
+        return f"alarm_enabled probe_{decoded['probe']} {'on' if decoded['enabled'] else 'off'}"
+    return "unknown"
+
+
+def _colorize(text: str, value: int, enabled: bool) -> str:
+    if not enabled:
+        return text
+    color = PALETTE[value % len(PALETTE)]
+    return f"\033[{color}m{text}\033[0m"
+
+
+def _packet_compact(data: bytes, color: bool) -> str:
+    return " ".join(_colorize(f"{byte:02x}", byte, color) for byte in data)
 
 
 def _print_scan_result(found: FoundDevice) -> None:
@@ -185,6 +261,91 @@ async def cmd_watch(args: argparse.Namespace) -> int:
                 for key, value in sorted(latest.items())
             )
             print(rendered)
+
+        if args.once:
+            stop_event.set()
+
+    loop = asyncio.get_running_loop()
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(signum, stop_event.set)
+        except NotImplementedError:
+            pass
+
+    def on_disconnect(_client: BleakClient) -> None:
+        disconnected_event.set()
+
+    async with BleakClient(
+        _bleak_target(selected),
+        disconnected_callback=on_disconnect,
+        timeout=args.connect_timeout,
+    ) as client:
+        await client.start_notify(NOTIFY_UUID, on_notify)
+        await _activate(client)
+
+        wait_tasks = [
+            asyncio.create_task(stop_event.wait()),
+            asyncio.create_task(disconnected_event.wait()),
+        ]
+        if args.duration is not None:
+            wait_tasks.append(asyncio.create_task(asyncio.sleep(args.duration)))
+
+        done, pending = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        for task in done:
+            task.result()
+
+    return 0
+
+
+async def cmd_raw_watch(args: argparse.Namespace) -> int:
+    selected = await _find_one(args)
+    if selected is None:
+        return 1
+
+    name = (
+        (selected.advertisement.local_name if selected.advertisement else None)
+        or selected.device.name
+        or selected.device.address
+    )
+    print(f"Connecting to {name} ({selected.device.address})...", file=sys.stderr)
+    print("Press thermometer buttons now; every notification will be printed.", file=sys.stderr)
+
+    stop_event = asyncio.Event()
+    disconnected_event = asyncio.Event()
+    packet_count = 0
+
+    def on_notify(sender: object, data: bytearray) -> None:
+        nonlocal packet_count
+        packet_count += 1
+        timestamp = datetime.now().isoformat(timespec="milliseconds")
+        payload = bytes(data)
+        decoded = _describe_notification(payload)
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "timestamp": timestamp,
+                        "packet": packet_count,
+                        "sender": str(sender),
+                        "hex": payload.hex(" "),
+                        "decoded": decoded,
+                    }
+                ),
+                flush=True,
+            )
+        elif args.compact:
+            print(
+                f"{timestamp} #{packet_count:04d} "
+                f"{_packet_compact(payload, not args.no_color)}  {_packet_summary(decoded)}",
+                flush=True,
+            )
+        else:
+            print(
+                f"{timestamp} #{packet_count:04d} {payload.hex(' ')}  {_packet_summary(decoded)}",
+                flush=True,
+            )
 
         if args.once:
             stop_event.set()
@@ -394,6 +555,23 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("--once", action="store_true", help="exit after one update")
     watch.add_argument("--json", action="store_true", help="print JSON lines")
     watch.set_defaults(func=cmd_watch)
+
+    raw_watch = subparsers.add_parser(
+        "raw-watch", help="print every raw GATT notification packet"
+    )
+    raw_watch.add_argument("--address", help="Bluetooth address from the scan command")
+    raw_watch.add_argument("--scan-timeout", type=float, default=DEFAULT_SCAN_TIMEOUT)
+    raw_watch.add_argument("--connect-timeout", type=float, default=30.0)
+    raw_watch.add_argument("--duration", type=float, help="seconds to run before exiting")
+    raw_watch.add_argument("--once", action="store_true", help="exit after one notification")
+    raw_watch.add_argument("--json", action="store_true", help="print JSON lines")
+    raw_watch.add_argument(
+        "--compact",
+        action="store_true",
+        help="print raw packet bytes with stable per-byte colors",
+    )
+    raw_watch.add_argument("--no-color", action="store_true", help="disable ANSI colors")
+    raw_watch.set_defaults(func=cmd_raw_watch)
 
     targets = subparsers.add_parser("targets", help="read configured alarm targets")
     targets.add_argument("--address", help="Bluetooth address from the scan command")

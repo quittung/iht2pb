@@ -42,8 +42,43 @@ class AlarmEnabled:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class TemperatureState:
+    command: int
+    celsius: float
+
+
+@dataclass(frozen=True)
+class FahrenheitReading:
+    probe: int
+    fahrenheit: float
+
+
+@dataclass(frozen=True)
+class HoldState:
+    held: bool
+
+
+@dataclass(frozen=True)
+class ActivityState:
+    value: int
+
+
 def checksum(payload: bytes | bytearray) -> int:
     return sum(payload) & 0xFF
+
+
+def decode_temperature_value(data: bytes | bytearray) -> float | None:
+    if len(data) < 6:
+        return None
+
+    high = data[4]
+    low = data[5]
+    if high >= NEGATIVE_TEMP_HIGH_BYTE:
+        return (TEMP_BASE * (high - TEMP_BASE) + (low - TEMP_BASE)) / 10
+    if high <= POSITIVE_TEMP_MAX_HIGH_BYTE:
+        return (TEMP_BASE * high + low) / 10
+    return None
 
 
 def decode_temperature(data: bytes | bytearray) -> ProbeReading | None:
@@ -54,16 +89,47 @@ def decode_temperature(data: bytes | bytearray) -> ProbeReading | None:
     if probe is None:
         return None
 
-    high = data[4]
-    low = data[5]
-    if high >= NEGATIVE_TEMP_HIGH_BYTE:
-        celsius = (TEMP_BASE * (high - TEMP_BASE) + (low - TEMP_BASE)) / 10
-    elif high <= POSITIVE_TEMP_MAX_HIGH_BYTE:
-        celsius = (TEMP_BASE * high + low) / 10
-    else:
+    celsius = decode_temperature_value(data)
+    if celsius is None:
         return None
 
     return ProbeReading(probe=probe, celsius=celsius)
+
+
+def decode_fahrenheit(data: bytes | bytearray) -> FahrenheitReading | None:
+    if len(data) < 6 or data[2] != 0x03:
+        return None
+
+    fahrenheit = decode_temperature_value(data)
+    if fahrenheit is None:
+        return None
+    return FahrenheitReading(probe=1, fahrenheit=fahrenheit)
+
+
+def decode_temperature_state(data: bytes | bytearray) -> TemperatureState | None:
+    if len(data) < 6 or data[2] not in (0x08, 0x09, 0x0A):
+        return None
+
+    celsius = decode_temperature_value(data)
+    if celsius is None:
+        return None
+    return TemperatureState(command=data[2], celsius=celsius)
+
+
+def decode_hold_state(data: bytes | bytearray) -> HoldState | None:
+    if len(data) != 6 or data[2] != 0x01:
+        return None
+    if data[4] == 0xFD:
+        return HoldState(held=True)
+    if data[4] == 0xF9:
+        return HoldState(held=False)
+    return None
+
+
+def decode_activity_state(data: bytes | bytearray) -> ActivityState | None:
+    if len(data) != 6 or data[2] != 0x0C:
+        return None
+    return ActivityState(value=data[4])
 
 
 def decode_alarm_target(data: bytes | bytearray) -> AlarmTarget | None:
