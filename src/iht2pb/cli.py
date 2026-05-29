@@ -20,14 +20,13 @@ from .protocol import (
     WRITE_UUID,
     AlarmEnabled,
     AlarmTarget,
-    ProbeReading,
     decode_alarm_enabled,
     decode_alarm_target,
-    decode_activity_state,
+    decode_display_state,
     decode_fahrenheit,
     decode_hold_state,
+    decode_probe_snapshot,
     decode_temperature,
-    decode_temperature_state,
     encode_alarm_enabled,
     encode_alarm_target,
 )
@@ -87,21 +86,21 @@ def _describe_notification(data: bytes | bytearray) -> dict[str, object]:
             "fahrenheit": fahrenheit.fahrenheit,
         }
 
-    temp_state = decode_temperature_state(data)
-    if temp_state is not None:
+    snapshot = decode_probe_snapshot(data)
+    if snapshot is not None:
         return {
-            "kind": "temperature_state",
-            "command": f"0x{temp_state.command:02x}",
-            "celsius": temp_state.celsius,
+            "kind": "probe_snapshot",
+            "probe": snapshot.probe,
+            "celsius": snapshot.celsius,
         }
 
     hold_state = decode_hold_state(data)
     if hold_state is not None:
         return {"kind": "hold_state", "held": hold_state.held}
 
-    activity_state = decode_activity_state(data)
-    if activity_state is not None:
-        return {"kind": "activity_state", "value": f"0x{activity_state.value:02x}"}
+    display_state = decode_display_state(data)
+    if display_state is not None:
+        return {"kind": "display_state", "on": display_state.on}
 
     target = decode_alarm_target(data)
     if target is not None:
@@ -120,12 +119,12 @@ def _packet_summary(decoded: dict[str, object]) -> str:
         return f"temperature probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
     if kind == "fahrenheit":
         return f"fahrenheit probe_{decoded['probe']} {decoded['fahrenheit']:.1f} F"
-    if kind == "temperature_state":
-        return f"temp_state {decoded['command']} {_format_temperature(decoded['celsius'])}"
+    if kind == "probe_snapshot":
+        return f"snapshot probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
     if kind == "hold_state":
         return f"hold {'on' if decoded['held'] else 'off'}"
-    if kind == "activity_state":
-        return f"activity {decoded['value']}"
+    if kind == "display_state":
+        return f"display {'on' if decoded['on'] else 'off'}"
     if kind == "alarm_target":
         return f"alarm_target probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
     if kind == "alarm_enabled":
@@ -140,7 +139,7 @@ def _colorize(text: str, value: int, enabled: bool) -> str:
     return f"\033[{color}m{text}\033[0m"
 
 
-def _packet_compact(data: bytes, color: bool) -> str:
+def _packet_hex(data: bytes, color: bool) -> str:
     return " ".join(_colorize(f"{byte:02x}", byte, color) for byte in data)
 
 
@@ -310,7 +309,7 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
         or selected.device.address
     )
     print(f"Connecting to {name} ({selected.device.address})...", file=sys.stderr)
-    print("Press thermometer buttons now; every notification will be printed.", file=sys.stderr)
+    print("Every notification will be printed.", file=sys.stderr)
 
     stop_event = asyncio.Event()
     disconnected_event = asyncio.Event()
@@ -335,15 +334,10 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
                 ),
                 flush=True,
             )
-        elif args.compact:
-            print(
-                f"{timestamp} #{packet_count:04d} "
-                f"{_packet_compact(payload, not args.no_color)}  {_packet_summary(decoded)}",
-                flush=True,
-            )
         else:
             print(
-                f"{timestamp} #{packet_count:04d} {payload.hex(' ')}  {_packet_summary(decoded)}",
+                f"{timestamp} #{packet_count:04d} "
+                f"{_packet_hex(payload, args.color)}  {_packet_summary(decoded)}",
                 flush=True,
             )
 
@@ -566,11 +560,10 @@ def build_parser() -> argparse.ArgumentParser:
     raw_watch.add_argument("--once", action="store_true", help="exit after one notification")
     raw_watch.add_argument("--json", action="store_true", help="print JSON lines")
     raw_watch.add_argument(
-        "--compact",
+        "--color",
         action="store_true",
-        help="print raw packet bytes with stable per-byte colors",
+        help="colorize raw packet bytes by byte value",
     )
-    raw_watch.add_argument("--no-color", action="store_true", help="disable ANSI colors")
     raw_watch.set_defaults(func=cmd_raw_watch)
 
     targets = subparsers.add_parser("targets", help="read configured alarm targets")

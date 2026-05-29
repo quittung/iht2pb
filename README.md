@@ -1,85 +1,71 @@
-# IHT-2PB Python interface
+# Inkbird IHT-2PB
 
-Small command-line wrapper for reading an Inkbird IHT-2PB Bluetooth cooking
-thermometer from Python.
+A reverse-engineered reference for the BLE protocol of the **Inkbird IHT-2PB**
+Bluetooth cooking thermometer, plus a small Python CLI that exercises it.
 
-BLE protocol support already exists in
-[`inkbird-ble`](https://pypi.org/project/inkbird-ble/). Its current
-documentation lists `IHT-2PB` as a GATT notification device named like
-`Ink@IHT-2PB#...`, exposing three probe temperatures. It also handles the two
-activation writes that the thermometer needs before it starts streaming.
+The point of this repo is the protocol notes. The code is a working example of
+those notes, not a polished library — if you just want to talk to the device,
+read [`protocol.md`](protocol.md) and write whatever fits your project. (And if
+you're an LLM/agent reading this to implement support somewhere: `protocol.md`
+is the spec; everything here is derived from it.)
 
-This CLI currently talks to the thermometer directly with
-[`bleak`](https://github.com/hbldh/bleak), using the same protocol details,
-because the `inkbird-ble` 1.5.1 notify path hit a local dependency API mismatch
-during testing.
+## What's here
 
-## Setup
+| File | What it is |
+| --- | --- |
+| [`protocol.md`](protocol.md) | The reference: GATT, framing, checksum, every known command, what's observed vs. inferred. |
+| [`src/iht2pb/protocol.py`](src/iht2pb/protocol.py) | Pure encode/decode functions, no I/O. The protocol as code. |
+| [`src/iht2pb/cli.py`](src/iht2pb/cli.py) | A small `bleak`-based CLI that connects, decodes, and writes config. |
+| [`sample_recording.txt`](sample_recording.txt) | An annotated notification capture the notes are based on. |
+
+## The short version
+
+- The IHT-2PB does **not** put temperatures in its advertisements. You must
+  connect over GATT and subscribe to notifications, then send two activation
+  writes before it streams.
+- Frames are `55 aa <command> <length> <payload...> <checksum>`.
+- Temperatures are big-endian tenths of a degree: `((high << 8) | low) / 10`.
+- Three probes: probe 1 is the built-in fold-out probe; probes 2 and 3 are
+  external sockets that report garbage when nothing is plugged in.
+
+See [`protocol.md`](protocol.md) for the full story, including the things that
+are still guesses.
+
+## Trying the CLI
+
+Because this connects over GATT, the phone app and this tool can't both be
+connected to the thermometer at once.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
 ```
 
-On Linux, make sure Bluetooth is powered on:
+On Linux, make sure Bluetooth is on (`bluetoothctl power on`). Then:
 
 ```sh
-bluetoothctl power on
+.venv/bin/iht2pb scan                 # find nearby thermometers
+.venv/bin/iht2pb watch                # live probe temperatures
+.venv/bin/iht2pb raw-watch            # every notification, decoded + hex
+.venv/bin/iht2pb targets              # read alarm targets
+.venv/bin/iht2pb set-target 1 200.0   # set probe 1 alarm to 200.0 C
+.venv/bin/iht2pb alarm-enabled        # read alarm on/off states
+.venv/bin/iht2pb set-alarm-enabled 1 on
 ```
 
-## Use
+Useful flags: `--address AA:BB:CC:DD:EE:FF` to pick a specific device,
+`--json` for machine-readable output, `--once` to exit after the first update.
+`raw-watch` is the handy one for protocol work — it prints the raw bytes next to
+the decode, so it's the quickest way to spot a packet the notes don't cover yet.
 
-Turn on the thermometer and keep it nearby.
+## Status & caveats
 
-Scan for the device:
+This is reverse-engineered from one unit (firmware `VER1.2.0`) with only probe 1
+connected, so anything involving probes 2/3 or negative temperatures is
+inference, not observation — `protocol.md` marks which is which. Corrections and
+captures that fill the gaps are welcome.
 
-```sh
-.venv/bin/iht2pb scan
-```
-
-Watch temperatures:
-
-```sh
-.venv/bin/iht2pb watch
-```
-
-Read alarm targets:
-
-```sh
-.venv/bin/iht2pb targets
-```
-
-Set an alarm target. Probe 1 is the built-in fold-out probe; probes 2 and 3
-are the external sockets:
-
-```sh
-.venv/bin/iht2pb set-target 1 200.0
-```
-
-If several devices are visible, pass the address printed by `scan`:
-
-```sh
-.venv/bin/iht2pb watch --address AA:BB:CC:DD:EE:FF
-```
-
-JSON output for scripts:
-
-```sh
-.venv/bin/iht2pb watch --json
-```
-
-Exit after the first notification:
-
-```sh
-.venv/bin/iht2pb watch --once
-```
-
-## Notes
-
-The IHT-2PB does not broadcast temperature readings in advertisements. It must
-be connected over GATT notifications, so the phone app and this script should
-not be connected to the thermometer at the same time.
-
-Alarm targets use the same GATT notification stream. The device reports target
-packets during the startup/config burst after activation; writes go to `ffe9`
-as `55 aa <0d|0e|0f> 04 <target*10 hi> <target*10 lo> ff ff <checksum>`.
+The CLI talks to the device directly with [`bleak`](https://github.com/hbldh/bleak)
+rather than via [`inkbird-ble`](https://pypi.org/project/inkbird-ble/), which
+also supports this device; the direct path just kept the protocol details
+visible and in one place.

@@ -5,9 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "iht2pb"
 version = "0.1.0"
-description = "Command-line interface for Inkbird IHT-2PB BLE thermometer readings"
+description = "Reverse-engineered Inkbird IHT-2PB BLE protocol reference and CLI"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
     "bleak>=2",
 ]

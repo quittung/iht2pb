@@ -11,7 +11,12 @@ INIT_WRITES = (
     (NOTIFY_UUID, b"\x55\xaa\x1a\x01\x00\x1a"),
 )
 
+# Live per-probe streams: even command = Celsius, odd = Fahrenheit.
+# Only probe 1 (0x02/0x03) has been captured; probes 2 and 3 are inferred.
 TEMPERATURE_SELECTORS = {0x02: 1, 0x04: 2, 0x06: 3}
+FAHRENHEIT_SELECTORS = {0x03: 1, 0x05: 2, 0x07: 3}
+# One-shot snapshot of probes 1/2/3 (startup burst and rising hold edge).
+SNAPSHOT_SELECTORS = {0x08: 1, 0x09: 2, 0x0A: 3}
 TARGET_COMMANDS = {0x0D: 1, 0x0E: 2, 0x0F: 3}
 TARGET_COMMAND_BY_PROBE = {probe: command for command, probe in TARGET_COMMANDS.items()}
 ALARM_ENABLE_COMMANDS = {0x12: 1, 0x13: 2, 0x14: 3}
@@ -19,9 +24,11 @@ ALARM_ENABLE_COMMAND_BY_PROBE = {
     probe: command for command, probe in ALARM_ENABLE_COMMANDS.items()
 }
 
-TEMP_BASE = 255
-NEGATIVE_TEMP_HIGH_BYTE = 254
-POSITIVE_TEMP_MAX_HIGH_BYTE = 11
+HOLD_COMMAND = 0x01
+DISPLAY_COMMAND = 0x0C
+HOLD_FLAG_BIT = 0x04
+DISPLAY_ON_BIT = 0x10
+HEADER = b"\x55\xaa"
 
 
 @dataclass(frozen=True)
@@ -43,8 +50,8 @@ class AlarmEnabled:
 
 
 @dataclass(frozen=True)
-class TemperatureState:
-    command: int
+class ProbeSnapshot:
+    probe: int
     celsius: float
 
 
@@ -60,29 +67,38 @@ class HoldState:
 
 
 @dataclass(frozen=True)
-class ActivityState:
-    value: int
+class DisplayState:
+    on: bool
 
 
 def checksum(payload: bytes | bytearray) -> int:
     return sum(payload) & 0xFF
 
 
+def valid_frame(data: bytes | bytearray, payload_length: int | None = None) -> bool:
+    if len(data) < 5:
+        return False
+    if bytes(data[:2]) != HEADER:
+        return False
+    if payload_length is not None and data[3] != payload_length:
+        return False
+    if len(data) != data[3] + 5:
+        return False
+    return checksum(data[:-1]) == data[-1]
+
+
 def decode_temperature_value(data: bytes | bytearray) -> float | None:
-    if len(data) < 6:
+    if not valid_frame(data, payload_length=2):
         return None
 
-    high = data[4]
-    low = data[5]
-    if high >= NEGATIVE_TEMP_HIGH_BYTE:
-        return (TEMP_BASE * (high - TEMP_BASE) + (low - TEMP_BASE)) / 10
-    if high <= POSITIVE_TEMP_MAX_HIGH_BYTE:
-        return (TEMP_BASE * high + low) / 10
-    return None
+    raw = (data[4] << 8) | data[5]
+    if raw >= 0x8000:  # two's-complement negative (inferred, never captured)
+        raw -= 0x10000
+    return raw / 10
 
 
 def decode_temperature(data: bytes | bytearray) -> ProbeReading | None:
-    if len(data) < 6:
+    if not valid_frame(data, payload_length=2):
         return None
 
     probe = TEMPERATURE_SELECTORS.get(data[2])
@@ -97,49 +113,47 @@ def decode_temperature(data: bytes | bytearray) -> ProbeReading | None:
 
 
 def decode_fahrenheit(data: bytes | bytearray) -> FahrenheitReading | None:
-    if len(data) < 6 or data[2] != 0x03:
+    if not valid_frame(data, payload_length=2):
+        return None
+
+    probe = FAHRENHEIT_SELECTORS.get(data[2])
+    if probe is None:
         return None
 
     fahrenheit = decode_temperature_value(data)
     if fahrenheit is None:
         return None
-    return FahrenheitReading(probe=1, fahrenheit=fahrenheit)
+    return FahrenheitReading(probe=probe, fahrenheit=fahrenheit)
 
 
-def decode_temperature_state(data: bytes | bytearray) -> TemperatureState | None:
-    if len(data) < 6 or data[2] not in (0x08, 0x09, 0x0A):
+def decode_probe_snapshot(data: bytes | bytearray) -> ProbeSnapshot | None:
+    if not valid_frame(data, payload_length=2):
+        return None
+
+    probe = SNAPSHOT_SELECTORS.get(data[2])
+    if probe is None:
         return None
 
     celsius = decode_temperature_value(data)
     if celsius is None:
         return None
-    return TemperatureState(command=data[2], celsius=celsius)
+    return ProbeSnapshot(probe=probe, celsius=celsius)
 
 
 def decode_hold_state(data: bytes | bytearray) -> HoldState | None:
-    if len(data) != 6 or data[2] != 0x01:
+    if not valid_frame(data, payload_length=1) or data[2] != HOLD_COMMAND:
         return None
-    if data[4] == 0xFD:
-        return HoldState(held=True)
-    if data[4] == 0xF9:
-        return HoldState(held=False)
-    return None
+    return HoldState(held=bool(data[4] & HOLD_FLAG_BIT))
 
 
-def decode_activity_state(data: bytes | bytearray) -> ActivityState | None:
-    if len(data) != 6 or data[2] != 0x0C:
+def decode_display_state(data: bytes | bytearray) -> DisplayState | None:
+    if not valid_frame(data, payload_length=1) or data[2] != DISPLAY_COMMAND:
         return None
-    return ActivityState(value=data[4])
+    return DisplayState(on=bool(data[4] & DISPLAY_ON_BIT))
 
 
 def decode_alarm_target(data: bytes | bytearray) -> AlarmTarget | None:
-    if len(data) < 9:
-        return None
-    if data[0] != 0x55 or data[1] != 0xAA:
-        return None
-    if data[3] != 0x04:
-        return None
-    if checksum(data[:-1]) != data[-1]:
+    if not valid_frame(data, payload_length=4):
         return None
 
     probe = TARGET_COMMANDS.get(data[2])
@@ -151,13 +165,7 @@ def decode_alarm_target(data: bytes | bytearray) -> AlarmTarget | None:
 
 
 def decode_alarm_enabled(data: bytes | bytearray) -> AlarmEnabled | None:
-    if len(data) < 6:
-        return None
-    if data[0] != 0x55 or data[1] != 0xAA:
-        return None
-    if data[3] != 0x01:
-        return None
-    if checksum(data[:-1]) != data[-1]:
+    if not valid_frame(data, payload_length=1):
         return None
 
     probe = ALARM_ENABLE_COMMANDS.get(data[2])
