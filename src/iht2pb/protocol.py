@@ -29,6 +29,7 @@ DISPLAY_COMMAND = 0x0C
 PROBE_CONNECTION_COMMAND = 0x0B
 DEVICE_NAME_COMMAND = 0x16
 FIRMWARE_COMMAND = 0x18
+ACTIVATION_ECHO_COMMAND = 0x19
 HOLD_FLAG_BIT = 0x04
 DISPLAY_ON_BIT = 0x10
 PROBE_2_PRESENT_BIT = 0x40
@@ -90,6 +91,11 @@ class DeviceName:
 @dataclass(frozen=True)
 class FirmwareVersion:
     version: str
+
+
+@dataclass(frozen=True)
+class ActivationEcho:
+    """The device echoing the first activation write back as a notification."""
 
 
 def checksum(payload: bytes | bytearray) -> int:
@@ -220,6 +226,12 @@ def decode_device_name(data: bytes | bytearray) -> DeviceName | None:
 def decode_firmware_version(data: bytes | bytearray) -> FirmwareVersion | None:
     text = _decode_ascii_payload(data, FIRMWARE_COMMAND)
     return FirmwareVersion(version=text) if text is not None else None
+
+
+def decode_activation_echo(data: bytes | bytearray) -> ActivationEcho | None:
+    if not valid_frame(data, payload_length=1) or data[2] != ACTIVATION_ECHO_COMMAND:
+        return None
+    return ActivationEcho()
 
 
 def decode_alarm_target(data: bytes | bytearray) -> AlarmTarget | None:

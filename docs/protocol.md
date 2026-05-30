@@ -300,7 +300,7 @@ These appear in the startup burst and are not yet decoded:
 
 | Packet | Notes |
 | --- | --- |
-| `55 aa 15 01 0a 1f` | single payload byte, `0x0a` observed |
+| `55 aa 15 01 0a 1f` | single payload byte (`0x0a` observed); possibly encodes device settings (like the spare bits of the hold byte) — unconfirmed |
 
 ## Startup burst
 
