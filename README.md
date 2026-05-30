@@ -5,18 +5,19 @@ Bluetooth cooking thermometer, plus a small Python CLI that exercises it.
 
 The point of this repo is the protocol notes. The code is a working example of
 those notes, not a polished library — if you just want to talk to the device,
-read [`protocol.md`](protocol.md) and write whatever fits your project. (And if
-you're an LLM/agent reading this to implement support somewhere: `protocol.md`
-is the spec; everything here is derived from it.)
+read [`docs/protocol.md`](docs/protocol.md) and write whatever fits your
+project. (And if you're an LLM/agent reading this to implement support
+somewhere: `docs/protocol.md` is the spec; everything here is derived from it.)
 
 ## What's here
 
 | File | What it is |
 | --- | --- |
-| [`protocol.md`](protocol.md) | The reference: GATT, framing, checksum, every known command, what's observed vs. inferred. |
+| [`docs/protocol.md`](docs/protocol.md) | The reference: GATT, framing, checksum, every known command, what's observed vs. inferred. |
 | [`src/iht2pb/protocol.py`](src/iht2pb/protocol.py) | Pure encode/decode functions, no I/O. The protocol as code. |
 | [`src/iht2pb/cli.py`](src/iht2pb/cli.py) | A small `bleak`-based CLI that connects, decodes, and writes config. |
-| [`sample_recording.txt`](sample_recording.txt) | An annotated notification capture the notes are based on. |
+| [`docs/sample_recording.raw.txt`](docs/sample_recording.raw.txt) | Ground-truth captures: timestamp + raw notification bytes, grouped by session. |
+| [`docs/sample_recording.txt`](docs/sample_recording.txt) | The same captures decoded by the CLI (frames split, commands annotated). |
 
 ## The short version
 
@@ -28,8 +29,8 @@ is the spec; everything here is derived from it.)
 - Three probes: probe 1 is the built-in fold-out probe; probes 2 and 3 are
   external sockets that report garbage when nothing is plugged in.
 
-See [`protocol.md`](protocol.md) for the full story, including the things that
-are still guesses.
+See [`docs/protocol.md`](docs/protocol.md) for the full story, including the
+things that are still guesses.
 
 ## Trying the CLI
 
@@ -62,8 +63,8 @@ the decode, so it's the quickest way to spot a packet the notes don't cover yet.
 
 This is reverse-engineered from one unit (firmware `VER1.2.0`) with only probe 1
 connected, so anything involving probes 2/3 or negative temperatures is
-inference, not observation — `protocol.md` marks which is which. Corrections and
-captures that fill the gaps are welcome.
+inference, not observation — `docs/protocol.md` marks which is which.
+Corrections and captures that fill the gaps are welcome.
 
 The CLI talks to the device directly with [`bleak`](https://github.com/hbldh/bleak)
 rather than via [`inkbird-ble`](https://pypi.org/project/inkbird-ble/), which

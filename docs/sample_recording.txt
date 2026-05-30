@@ -1,0 +1,268 @@
+# session 1: probe 1 only; hold toggles and a brief warm-up ramp
+2026-05-30T00:24:19.694 #0001 55 aa 19 01 00 19  unknown
+2026-05-30T00:24:19.694 #0002 55 aa 01 01 f9 fa  hold off
+2026-05-30T00:24:19.694 #0003 55 aa 02 02 00 fe 01  temperature probe_1 25.4 C
+2026-05-30T00:24:19.889 #0004 55 aa 03 02 03 09 10  fahrenheit probe_1 77.7 F
+2026-05-30T00:24:19.889 #0005 55 aa 08 02 01 00 0a  snapshot probe_1 25.6 C
+2026-05-30T00:24:19.889 #0006 55 aa 09 02 02 4c 58  snapshot probe_2 58.8 C
+2026-05-30T00:24:20.085 #0007 55 aa 0a 02 00 c9 d4  snapshot probe_3 20.1 C
+2026-05-30T00:24:20.085 #0008 55 aa 0b 01 00 0b  connection probe 1 only
+2026-05-30T00:24:20.085 #0009 55 aa 0c 01 80 8c  display off
+2026-05-30T00:24:20.279 #0010 55 aa 0d 04 01 4a ff ff 59  alarm_target probe_1 33.0 C
+2026-05-30T00:24:20.279 #0011 55 aa 0e 04 08 3e ff ff 55  alarm_target probe_2 211.0 C
+2026-05-30T00:24:20.475 #0012 55 aa 0f 04 07 12 ff ff 29  alarm_target probe_3 181.0 C
+2026-05-30T00:24:20.475 #0013 55 aa 12 01 01 13  alarm_enabled probe_1 on
+2026-05-30T00:24:20.476 #0014 55 aa 13 01 00 13  alarm_enabled probe_2 off
+2026-05-30T00:24:20.670 #0015 55 aa 14 01 00 14  alarm_enabled probe_3 off
+2026-05-30T00:24:20.670 #0016 55 aa 15 01 0a 1f  unknown
+2026-05-30T00:24:20.670 #0017 55 aa 16 0f 49 6e 6b 40 49 48 54 2d 32 50 42 23 36 31 32 18  device_name Ink@IHT-2PB#612
+2026-05-30T00:24:20.865 #0018 55 aa 18 08 56 45 52 31 2e 32 2e 30 fb  firmware VER1.2.0
+2026-05-30T00:24:21.450 #0019 55 aa 02 02 00 ff 02  temperature probe_1 25.5 C
+2026-05-30T00:24:21.450 #0020 55 aa 03 02 03 0b 12  fahrenheit probe_1 77.9 F
+2026-05-30T00:24:30.029 #0021 55 aa 08 02 00 ff 08  snapshot probe_1 25.5 C
+2026-05-30T00:24:30.029 #0022 55 aa 09 02 02 4c 58  snapshot probe_2 58.8 C
+2026-05-30T00:24:30.029 #0023 55 aa 0a 02 00 c9 d4  snapshot probe_3 20.1 C
+2026-05-30T00:24:30.225 #0024 55 aa 0c 01 90 9c  display on
+2026-05-30T00:24:30.614 #0025 55 aa 01 01 fd fe  hold on
+2026-05-30T00:24:34.514 #0026 55 aa 0c 01 90 9c  display on
+2026-05-30T00:24:34.904 #0027 55 aa 01 01 f9 fa  hold off
+2026-05-30T00:24:38.219 #0028 55 aa 02 02 00 ff 02  temperature probe_1 25.5 C
+2026-05-30T00:24:38.219 #0029 55 aa 03 02 03 0b 12  fahrenheit probe_1 77.9 F
+2026-05-30T00:24:42.314 #0030 55 aa 02 02 01 00 04  temperature probe_1 25.6 C
+2026-05-30T00:24:42.314 #0031 55 aa 03 02 03 0d 14  fahrenheit probe_1 78.1 F
+2026-05-30T00:24:42.314 #0032 55 aa 02 02 01 07 0b  temperature probe_1 26.3 C
+2026-05-30T00:24:42.509 #0033 55 aa 03 02 03 19 20  fahrenheit probe_1 79.3 F
+2026-05-30T00:24:42.509 #0034 55 aa 02 02 01 08 0c  temperature probe_1 26.4 C
+2026-05-30T00:24:42.512 #0035 55 aa 03 02 03 1b 22  fahrenheit probe_1 79.5 F
+2026-05-30T00:24:42.705 #0036 55 aa 02 02 01 11 15  temperature probe_1 27.3 C
+2026-05-30T00:24:42.705 #0037 55 aa 03 02 03 2b 32  fahrenheit probe_1 81.1 F
+2026-05-30T00:24:42.705 #0038 55 aa 02 02 01 12 16  temperature probe_1 27.4 C
+2026-05-30T00:24:42.900 #0039 55 aa 03 02 03 2d 34  fahrenheit probe_1 81.3 F
+2026-05-30T00:24:42.900 #0040 55 aa 02 02 01 1b 1f  temperature probe_1 28.3 C
+2026-05-30T00:24:42.900 #0041 55 aa 03 02 03 3d 44  fahrenheit probe_1 82.9 F
+2026-05-30T00:24:43.094 #0042 55 aa 02 02 01 1c 20  temperature probe_1 28.4 C
+2026-05-30T00:24:43.094 #0043 55 aa 03 02 03 3f 46  fahrenheit probe_1 83.1 F
+2026-05-30T00:24:43.094 #0044 55 aa 02 02 01 25 29  temperature probe_1 29.3 C
+2026-05-30T00:24:43.289 #0045 55 aa 03 02 03 4f 56  fahrenheit probe_1 84.7 F
+2026-05-30T00:24:43.289 #0046 55 aa 02 02 01 26 2a  temperature probe_1 29.4 C
+2026-05-30T00:24:43.289 #0047 55 aa 03 02 03 51 58  fahrenheit probe_1 84.9 F
+2026-05-30T00:24:43.679 #0048 55 aa 02 02 01 27 2b  temperature probe_1 29.5 C
+2026-05-30T00:24:43.679 #0049 55 aa 03 02 03 53 5a  fahrenheit probe_1 85.1 F
+2026-05-30T00:24:43.679 #0050 55 aa 0c 01 90 9c  display on
+2026-05-30T00:24:43.874 #0051 55 aa 02 02 01 28 2c  temperature probe_1 29.6 C
+2026-05-30T00:24:43.874 #0052 55 aa 03 02 03 55 5c  fahrenheit probe_1 85.3 F
+2026-05-30T00:24:43.874 #0053 55 aa 02 02 01 29 2d  temperature probe_1 29.7 C
+2026-05-30T00:24:44.069 #0054 55 aa 03 02 03 57 5e  fahrenheit probe_1 85.5 F
+2026-05-30T00:24:44.069 #0055 55 aa 02 02 01 2a 2e  temperature probe_1 29.8 C
+2026-05-30T00:24:44.069 #0056 55 aa 03 02 03 58 5f  fahrenheit probe_1 85.6 F
+2026-05-30T00:24:44.264 #0057 55 aa 02 02 01 2b 2f  temperature probe_1 29.9 C
+2026-05-30T00:24:44.264 #0058 55 aa 03 02 03 5a 61  fahrenheit probe_1 85.8 F
+2026-05-30T00:24:44.264 #0059 55 aa 02 02 01 2c 30  temperature probe_1 30.0 C
+2026-05-30T00:24:44.460 #0060 55 aa 03 02 03 5c 63  fahrenheit probe_1 86.0 F
+2026-05-30T00:24:44.460 #0061 55 aa 02 02 01 2d 31  temperature probe_1 30.1 C
+2026-05-30T00:24:44.460 #0062 55 aa 03 02 03 5e 65  fahrenheit probe_1 86.2 F
+2026-05-30T00:24:44.654 #0063 55 aa 02 02 01 2e 32  temperature probe_1 30.2 C
+2026-05-30T00:24:44.655 #0064 55 aa 03 02 03 60 67  fahrenheit probe_1 86.4 F
+2026-05-30T00:24:47.580 #0065 55 aa 02 02 01 2d 31  temperature probe_1 30.1 C
+2026-05-30T00:24:47.580 #0066 55 aa 03 02 03 5e 65  fahrenheit probe_1 86.2 F
+2026-05-30T00:24:48.554 #0067 55 aa 02 02 01 2c 30  temperature probe_1 30.0 C
+2026-05-30T00:24:48.750 #0068 55 aa 03 02 03 5c 63  fahrenheit probe_1 86.0 F
+2026-05-30T00:24:49.334 #0069 55 aa 02 02 01 2b 2f  temperature probe_1 29.9 C
+2026-05-30T00:24:49.334 #0070 55 aa 03 02 03 5a 61  fahrenheit probe_1 85.8 F
+2026-05-30T00:24:50.114 #0071 55 aa 02 02 01 2a 2e  temperature probe_1 29.8 C
+
+# session 2: probes 2 and 3 plugged in and pulled out one at a time
+2026-05-30T00:58:06.739 #0001 55 aa 19 01 00 19  unknown
+2026-05-30T00:58:06.739 #0002 55 aa 01 01 f9 fa  hold off
+2026-05-30T00:58:06.741 #0003 55 aa 02 02 01 06 0a  temperature probe_1 26.2 C
+2026-05-30T00:58:06.934 #0004 55 aa 03 02 03 18 1f  fahrenheit probe_1 79.2 F
+2026-05-30T00:58:06.934 #0005 55 aa 08 02 00 ff 08  snapshot probe_1 25.5 C
+2026-05-30T00:58:06.936 #0006 55 aa 09 02 02 4c 58  snapshot probe_2 58.8 C
+2026-05-30T00:58:07.129 #0007 55 aa 0a 02 00 c9 d4  snapshot probe_3 20.1 C
+2026-05-30T00:58:07.129 #0008 55 aa 0b 01 00 0b  connection probe 1 only
+2026-05-30T00:58:07.132 #0009 55 aa 0c 01 80 8c  display off
+2026-05-30T00:58:07.324 #0010 55 aa 0d 04 01 4a ff ff 59  alarm_target probe_1 33.0 C
+2026-05-30T00:58:07.324 #0011 55 aa 0e 04 08 3e ff ff 55  alarm_target probe_2 211.0 C
+2026-05-30T00:58:07.520 #0012 55 aa 0f 04 07 12 ff ff 29  alarm_target probe_3 181.0 C
+2026-05-30T00:58:07.520 #0013 55 aa 12 01 01 13  alarm_enabled probe_1 on
+2026-05-30T00:58:07.521 #0014 55 aa 13 01 00 13  alarm_enabled probe_2 off
+2026-05-30T00:58:07.714 #0015 55 aa 14 01 00 14  alarm_enabled probe_3 off
+2026-05-30T00:58:07.714 #0016 55 aa 15 01 0a 1f  unknown
+2026-05-30T00:58:07.715 #0017 55 aa 16 0f 49 6e 6b 40 49 48 54 2d 32 50 42 23 36 31 32 18  device_name Ink@IHT-2PB#612
+2026-05-30T00:58:07.910 #0018 55 aa 18 08 56 45 52 31 2e 32 2e 30 fb  firmware VER1.2.0
+2026-05-30T00:58:08.494 #0019 55 aa 02 02 01 05 09  temperature probe_1 26.1 C
+2026-05-30T00:58:08.494 #0020 55 aa 03 02 03 16 1d  fahrenheit probe_1 79.0 F
+2026-05-30T00:58:14.734 #0021 55 aa 0b 01 40 4b  connection probe_2
+2026-05-30T00:58:14.735 #0022 55 aa 04 02 01 00 06  temperature probe_2 25.6 C
+2026-05-30T00:58:14.929 #0023 55 aa 05 02 03 0d 16  fahrenheit probe_2 78.1 F
+2026-05-30T00:58:14.929 #0024 55 aa 0c 01 80 8c  display off
+2026-05-30T00:58:15.320 #0025 55 aa 01 01 f8 f9  hold off
+2026-05-30T00:58:28.190 #0026 55 aa 02 02 01 04 08  temperature probe_1 26.0 C
+2026-05-30T00:58:28.191 #0027 55 aa 03 02 03 14 1b  fahrenheit probe_1 78.8 F
+2026-05-30T00:58:28.191 #0028 55 aa 0b 01 00 0b  connection probe 1 only
+2026-05-30T00:58:28.385 #0029 55 aa 0c 01 80 8c  display off
+2026-05-30T00:58:29.165 #0030 55 aa 01 01 f9 fa  hold off
+2026-05-30T00:58:34.040 #0031 55 aa 0b 01 80 8b  connection probe_3
+2026-05-30T00:58:34.040 #0032 55 aa 06 02 00 ff 06  temperature probe_3 25.5 C
+2026-05-30T00:58:34.235 #0033 55 aa 07 02 03 0b 16  fahrenheit probe_3 77.9 F
+2026-05-30T00:58:34.236 #0034 55 aa 0c 01 80 8c  display off
+2026-05-30T00:58:34.430 #0035 55 aa 01 01 f8 f9  hold off
+2026-05-30T00:58:34.430 #0036 55 aa 02 02 01 04 08  temperature probe_1 26.0 C
+2026-05-30T00:58:34.430 #0037 55 aa 03 02 03 14 1b  fahrenheit probe_1 78.8 F
+2026-05-30T00:58:34.624 #0038 55 aa 06 02 00 ff 06  temperature probe_3 25.5 C
+2026-05-30T00:58:34.624 #0039 55 aa 07 02 03 0b 16  fahrenheit probe_3 77.9 F
+2026-05-30T00:58:38.720 #0040 55 aa 0b 01 c0 cb  connection probe_2, probe_3
+2026-05-30T00:58:38.720 #0041 55 aa 04 02 01 06 0c  temperature probe_2 26.2 C
+2026-05-30T00:58:38.721 #0042 55 aa 05 02 03 18 21  fahrenheit probe_2 79.2 F
+2026-05-30T00:58:38.915 #0043 55 aa 0c 01 80 8c  display off
+2026-05-30T00:58:38.915 #0044 55 aa 04 02 01 06 0c  temperature probe_2 26.2 C
+2026-05-30T00:58:38.916 #0045 55 aa 05 02 03 18 21  fahrenheit probe_2 79.2 F
+2026-05-30T00:58:49.250 #0046 55 aa 04 02 01 07 0d  temperature probe_2 26.3 C
+2026-05-30T00:58:49.250 #0047 55 aa 05 02 03 19 22  fahrenheit probe_2 79.3 F
+2026-05-30T00:58:49.250 #0048 55 aa 04 02 01 08 0e  temperature probe_2 26.4 C
+2026-05-30T00:58:49.445 #0049 55 aa 05 02 03 1b 24  fahrenheit probe_2 79.5 F
+2026-05-30T00:58:49.445 #0050 55 aa 04 02 01 09 0f  temperature probe_2 26.5 C
+2026-05-30T00:58:49.445 #0051 55 aa 05 02 03 1d 26  fahrenheit probe_2 79.7 F
+2026-05-30T00:58:49.640 #0052 55 aa 04 02 01 0a 10  temperature probe_2 26.6 C
+2026-05-30T00:58:49.641 #0053 55 aa 05 02 03 1f 28  fahrenheit probe_2 79.9 F
+2026-05-30T00:58:49.641 #0054 55 aa 04 02 01 0b 11  temperature probe_2 26.7 C
+2026-05-30T00:58:49.836 #0055 55 aa 05 02 03 21 2a  fahrenheit probe_2 80.1 F
+2026-05-30T00:58:51.395 #0056 55 aa 04 02 01 0c 12  temperature probe_2 26.8 C
+2026-05-30T00:58:51.395 #0057 55 aa 05 02 03 22 2b  fahrenheit probe_2 80.2 F
+2026-05-30T00:58:51.785 #0058 55 aa 04 02 01 0d 13  temperature probe_2 26.9 C
+2026-05-30T00:58:51.785 #0059 55 aa 05 02 03 24 2d  fahrenheit probe_2 80.4 F
+2026-05-30T00:58:53.150 #0060 55 aa 04 02 01 0e 14  temperature probe_2 27.0 C
+2026-05-30T00:58:53.151 #0061 55 aa 05 02 03 26 2f  fahrenheit probe_2 80.6 F
+2026-05-30T00:58:54.710 #0062 55 aa 06 02 01 00 08  temperature probe_3 25.6 C
+2026-05-30T00:58:54.710 #0063 55 aa 07 02 03 0d 18  fahrenheit probe_3 78.1 F
+2026-05-30T00:58:54.905 #0064 55 aa 04 02 01 0f 15  temperature probe_2 27.1 C
+2026-05-30T00:58:54.905 #0065 55 aa 05 02 03 28 31  fahrenheit probe_2 80.8 F
+2026-05-30T00:58:55.100 #0066 55 aa 06 02 01 06 0e  temperature probe_3 26.2 C
+2026-05-30T00:58:55.100 #0067 55 aa 04 02 01 10 16  temperature probe_2 27.2 C
+2026-05-30T00:58:55.101 #0068 55 aa 05 02 03 2a 33  fahrenheit probe_2 81.0 F
+2026-05-30T00:58:55.295 #0069 55 aa 07 02 03 18 23  fahrenheit probe_3 79.2 F
+2026-05-30T00:58:55.295 #0070 55 aa 04 02 01 11 17  temperature probe_2 27.3 C
+2026-05-30T00:58:55.296 #0071 55 aa 05 02 03 2b 34  fahrenheit probe_2 81.1 F
+2026-05-30T00:58:56.660 #0072 55 aa 06 02 01 07 0f  temperature probe_3 26.3 C
+2026-05-30T00:58:56.660 #0073 55 aa 07 02 03 19 24  fahrenheit probe_3 79.3 F
+2026-05-30T00:58:56.855 #0074 55 aa 04 02 01 12 18  temperature probe_2 27.4 C
+2026-05-30T00:58:56.855 #0075 55 aa 05 02 03 2d 36  fahrenheit probe_2 81.3 F
+2026-05-30T00:58:57.245 #0076 55 aa 04 02 01 13 19  temperature probe_2 27.5 C
+2026-05-30T00:58:57.245 #0077 55 aa 05 02 03 2f 38  fahrenheit probe_2 81.5 F
+2026-05-30T00:58:57.245 #0078 55 aa 04 02 01 14 1a  temperature probe_2 27.6 C
+2026-05-30T00:58:57.440 #0079 55 aa 05 02 03 31 3a  fahrenheit probe_2 81.7 F
+2026-05-30T00:58:58.806 #0080 55 aa 06 02 01 08 10  temperature probe_3 26.4 C
+2026-05-30T00:58:59.000 #0081 55 aa 07 02 03 1b 26  fahrenheit probe_3 79.5 F
+2026-05-30T00:58:59.195 #0082 55 aa 04 02 01 15 1b  temperature probe_2 27.7 C
+2026-05-30T00:58:59.195 #0083 55 aa 05 02 03 33 3c  fahrenheit probe_2 81.9 F
+2026-05-30T00:58:59.390 #0084 55 aa 04 02 01 16 1c  temperature probe_2 27.8 C
+2026-05-30T00:58:59.390 #0085 55 aa 05 02 03 34 3d  fahrenheit probe_2 82.0 F
+2026-05-30T00:59:01.145 #0086 55 aa 04 02 01 17 1d  temperature probe_2 27.9 C
+2026-05-30T00:59:01.145 #0087 55 aa 05 02 03 36 3f  fahrenheit probe_2 82.2 F
+2026-05-30T00:59:02.510 #0088 55 aa 04 02 01 18 1e  temperature probe_2 28.0 C
+2026-05-30T00:59:02.510 #0089 55 aa 05 02 03 38 41  fahrenheit probe_2 82.4 F
+2026-05-30T00:59:02.900 #0090 55 aa 04 02 01 19 1f  temperature probe_2 28.1 C
+2026-05-30T00:59:02.900 #0091 55 aa 05 02 03 3a 43  fahrenheit probe_2 82.6 F
+2026-05-30T00:59:04.461 #0092 55 aa 04 02 01 1a 20  temperature probe_2 28.2 C
+2026-05-30T00:59:04.461 #0093 55 aa 05 02 03 3c 45  fahrenheit probe_2 82.8 F
+2026-05-30T00:59:06.020 #0094 55 aa 04 02 01 1b 21  temperature probe_2 28.3 C
+2026-05-30T00:59:06.215 #0095 55 aa 05 02 03 3d 46  fahrenheit probe_2 82.9 F
+2026-05-30T00:59:07.775 #0096 55 aa 04 02 01 1c 22  temperature probe_2 28.4 C
+2026-05-30T00:59:07.775 #0097 55 aa 05 02 03 3f 48  fahrenheit probe_2 83.1 F
+2026-05-30T00:59:09.530 #0098 55 aa 04 02 01 1d 23  temperature probe_2 28.5 C
+2026-05-30T00:59:09.530 #0099 55 aa 05 02 03 41 4a  fahrenheit probe_2 83.3 F
+2026-05-30T00:59:11.090 #0100 55 aa 04 02 01 1e 24  temperature probe_2 28.6 C
+2026-05-30T00:59:11.090 #0101 55 aa 05 02 03 43 4c  fahrenheit probe_2 83.5 F
+2026-05-30T00:59:11.286 #0102 55 aa 08 02 01 13 1d  snapshot probe_1 27.5 C
+2026-05-30T00:59:11.286 #0103 55 aa 09 02 01 1e 29  snapshot probe_2 28.6 C
+2026-05-30T00:59:11.480 #0104 55 aa 0a 02 01 08 14  snapshot probe_3 26.4 C
+2026-05-30T00:59:11.480 #0105 55 aa 0c 01 90 9c  display on
+2026-05-30T00:59:11.871 #0106 55 aa 01 01 fc fd  hold on
+2026-05-30T00:59:12.845 #0107 55 aa 04 02 01 1f 25  temperature probe_2 28.7 C
+2026-05-30T00:59:12.846 #0108 55 aa 05 02 03 45 4e  fahrenheit probe_2 83.7 F
+2026-05-30T00:59:15.185 #0109 55 aa 04 02 01 20 26  temperature probe_2 28.8 C
+2026-05-30T00:59:15.185 #0110 55 aa 05 02 03 46 4f  fahrenheit probe_2 83.8 F
+2026-05-30T00:59:16.550 #0111 55 aa 06 02 01 07 0f  temperature probe_3 26.3 C
+2026-05-30T00:59:16.550 #0112 55 aa 07 02 03 19 24  fahrenheit probe_3 79.3 F
+2026-05-30T00:59:17.330 #0113 55 aa 0c 01 90 9c  display on
+2026-05-30T00:59:17.720 #0114 55 aa 04 02 01 21 27  temperature probe_2 28.9 C
+2026-05-30T00:59:17.720 #0115 55 aa 05 02 03 48 51  fahrenheit probe_2 84.0 F
+2026-05-30T00:59:18.306 #0116 55 aa 01 01 f8 f9  hold off
+2026-05-30T00:59:19.280 #0117 55 aa 04 02 01 22 28  temperature probe_2 29.0 C
+2026-05-30T00:59:19.281 #0118 55 aa 05 02 03 4a 53  fahrenheit probe_2 84.2 F
+2026-05-30T00:59:20.255 #0119 55 aa 06 02 01 06 0e  temperature probe_3 26.2 C
+2026-05-30T00:59:20.255 #0120 55 aa 07 02 03 18 23  fahrenheit probe_3 79.2 F
+2026-05-30T00:59:22.205 #0121 55 aa 04 02 01 23 29  temperature probe_2 29.1 C
+2026-05-30T00:59:22.205 #0122 55 aa 05 02 03 4c 55  fahrenheit probe_2 84.4 F
+2026-05-30T00:59:25.911 #0123 55 aa 04 02 01 24 2a  temperature probe_2 29.2 C
+2026-05-30T00:59:25.911 #0124 55 aa 05 02 03 4e 57  fahrenheit probe_2 84.6 F
+2026-05-30T00:59:27.080 #0125 55 aa 04 02 01 25 2b  temperature probe_2 29.3 C
+2026-05-30T00:59:27.080 #0126 55 aa 05 02 03 4f 58  fahrenheit probe_2 84.7 F
+2026-05-30T00:59:27.470 #0127 55 aa 06 02 01 05 0d  temperature probe_3 26.1 C
+2026-05-30T00:59:27.470 #0128 55 aa 07 02 03 16 21  fahrenheit probe_3 79.0 F
+2026-05-30T00:59:27.860 #0129 55 aa 0c 01 80 8c  display off
+2026-05-30T00:59:31.760 #0130 55 aa 0c 01 90 9c  display on
+2026-05-30T00:59:31.956 #0131 55 aa 06 02 01 04 0c  temperature probe_3 26.0 C
+2026-05-30T00:59:31.956 #0132 55 aa 07 02 03 14 1f  fahrenheit probe_3 78.8 F
+2026-05-30T00:59:32.345 #0133 55 aa 04 02 01 26 2c  temperature probe_2 29.4 C
+2026-05-30T00:59:32.345 #0134 55 aa 05 02 03 51 5a  fahrenheit probe_2 84.9 F
+2026-05-30T00:59:36.050 #0135 55 aa 04 02 01 27 2d  temperature probe_2 29.5 C
+2026-05-30T00:59:36.245 #0136 55 aa 05 02 03 53 5c  fahrenheit probe_2 85.1 F
+2026-05-30T00:59:37.416 #0137 55 aa 06 02 01 03 0b  temperature probe_3 25.9 C
+2026-05-30T00:59:37.416 #0138 55 aa 07 02 03 12 1d  fahrenheit probe_3 78.6 F
+2026-05-30T00:59:38.390 #0139 55 aa 04 02 01 28 2e  temperature probe_2 29.6 C
+2026-05-30T00:59:38.391 #0140 55 aa 05 02 03 55 5e  fahrenheit probe_2 85.3 F
+2026-05-30T00:59:38.586 #0141 55 aa 02 02 01 06 0a  temperature probe_1 26.2 C
+2026-05-30T00:59:38.586 #0142 55 aa 03 02 03 18 1f  fahrenheit probe_1 79.2 F
+2026-05-30T00:59:38.586 #0143 55 aa 04 02 01 28 2e  temperature probe_2 29.6 C
+2026-05-30T00:59:38.780 #0144 55 aa 05 02 03 55 5e  fahrenheit probe_2 85.3 F
+2026-05-30T00:59:38.780 #0145 55 aa 06 02 01 03 0b  temperature probe_3 25.9 C
+2026-05-30T00:59:38.782 #0146 55 aa 07 02 03 12 1d  fahrenheit probe_3 78.6 F
+
+# session 3: all three probes connected from the start
+2026-05-30T01:00:20.706 #0001 55 aa 19 01 00 19  unknown
+2026-05-30T01:00:20.901 #0002 55 aa 01 01 f8 f9  hold off
+2026-05-30T01:00:20.901 #0003 55 aa 02 02 01 02 06  temperature probe_1 25.8 C
+2026-05-30T01:00:20.901 #0004 55 aa 03 02 03 10 17  fahrenheit probe_1 78.4 F
+2026-05-30T01:00:21.096 #0005 55 aa 04 02 01 16 1c  temperature probe_2 27.8 C
+2026-05-30T01:00:21.096 #0006 55 aa 05 02 03 34 3d  fahrenheit probe_2 82.0 F
+2026-05-30T01:00:21.097 #0007 55 aa 06 02 00 ff 06  temperature probe_3 25.5 C
+2026-05-30T01:00:21.290 #0008 55 aa 07 02 03 0b 16  fahrenheit probe_3 77.9 F
+2026-05-30T01:00:21.290 #0009 55 aa 08 02 01 13 1d  snapshot probe_1 27.5 C
+2026-05-30T01:00:21.292 #0010 55 aa 09 02 01 1e 29  snapshot probe_2 28.6 C
+2026-05-30T01:00:21.486 #0011 55 aa 0a 02 01 08 14  snapshot probe_3 26.4 C
+2026-05-30T01:00:21.487 #0012 55 aa 0b 01 c0 cb  connection probe_2, probe_3
+2026-05-30T01:00:21.487 #0013 55 aa 0c 01 80 8c  display off
+2026-05-30T01:00:21.681 #0014 55 aa 0d 04 01 4a ff ff 59  alarm_target probe_1 33.0 C
+2026-05-30T01:00:21.682 #0015 55 aa 0e 04 08 3e ff ff 55  alarm_target probe_2 211.0 C
+2026-05-30T01:00:21.876 #0016 55 aa 0f 04 07 12 ff ff 29  alarm_target probe_3 181.0 C
+2026-05-30T01:00:21.876 #0017 55 aa 12 01 01 13  alarm_enabled probe_1 on
+2026-05-30T01:00:21.876 #0018 55 aa 13 01 00 13  alarm_enabled probe_2 off
+2026-05-30T01:00:21.876 #0019 55 aa 14 01 00 14  alarm_enabled probe_3 off
+2026-05-30T01:00:21.876 #0020 55 aa 15 01 0a 1f  unknown
+2026-05-30T01:00:21.877 #0021 55 aa 16 0f 49 6e 6b 40 49 48 54 2d 32 50 42 23 36 31 32 18  device_name Ink@IHT-2PB#612
+2026-05-30T01:00:22.071 #0022 55 aa 18 08  unknown
+2026-05-30T01:00:22.461 #0023 55 aa 04 02 01 16 1c  temperature probe_2 27.8 C
+2026-05-30T01:00:22.462 #0024 55 aa 05 02 03 34 3d  fahrenheit probe_2 82.0 F
+2026-05-30T01:00:22.462 #0025 55 aa 06 02 00 ff 06  temperature probe_3 25.5 C
+2026-05-30T01:00:22.656 #0026 55 aa 07 02 03 0b 16  fahrenheit probe_3 77.9 F
+2026-05-30T01:00:24.996 #0027 55 aa 04 02 01 15 1b  temperature probe_2 27.7 C
+2026-05-30T01:00:25.191 #0028 55 aa 05 02 03 33 3c  fahrenheit probe_2 81.9 F
+2026-05-30T01:00:26.751 #0029 55 aa 04 02 01 14 1a  temperature probe_2 27.6 C
+2026-05-30T01:00:26.752 #0030 55 aa 05 02 03 31 3a  fahrenheit probe_2 81.7 F
+2026-05-30T01:00:29.871 #0031 55 aa 06 02 00 fe 05  temperature probe_3 25.4 C
+2026-05-30T01:00:30.066 #0032 55 aa 07 02 03 09 14  fahrenheit probe_3 77.7 F
+
+# session 4: probe 3 in a freezer (sub-zero readings)
+2026-05-30T01:28:11.092 #0001 55 aa 06 02 ff f0 f6  temperature probe_3 -1.6 C
+2026-05-30T01:28:11.286 #0002 55 aa 07 02 01 23 2c  fahrenheit probe_3 29.1 F
+2026-05-30T01:28:11.286 #0003 55 aa 06 02 ff f7 fd  temperature probe_3 -0.9 C
+2026-05-30T01:28:11.290 #0004 55 aa 07 02 01 30 39  fahrenheit probe_3 30.4 F
+2026-05-30T01:28:11.483 #0005 55 aa 06 02 ff f8 fe  temperature probe_3 -0.8 C
+2026-05-30T01:28:11.483 #0006 55 aa 07 02 01 32 3b  fahrenheit probe_3 30.6 F
+2026-05-30T01:28:11.483 #0007 55 aa 06 02 ff ff 05  temperature probe_3 -0.1 C
+2026-05-30T01:28:11.676 #0008 55 aa 07 02 01 3e 47  fahrenheit probe_3 31.8 F
+2026-05-30T01:28:12.847 #0009 55 aa 06 02 00 00 07  temperature probe_3 0.0 C
+2026-05-30T01:28:12.847 #0010 55 aa 07 02 01 40 49  fahrenheit probe_3 32.0 F
+2026-05-30T01:28:12.847 #0011 55 aa 06 02 00 08 0f  temperature probe_3 0.8 C
+2026-05-30T01:28:13.042 #0012 55 aa 07 02 01 4e 57  fahrenheit probe_3 33.4 F

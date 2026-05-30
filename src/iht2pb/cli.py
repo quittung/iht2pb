@@ -22,13 +22,17 @@ from .protocol import (
     AlarmTarget,
     decode_alarm_enabled,
     decode_alarm_target,
+    decode_device_name,
     decode_display_state,
     decode_fahrenheit,
+    decode_firmware_version,
     decode_hold_state,
+    decode_probe_connection,
     decode_probe_snapshot,
     decode_temperature,
     encode_alarm_enabled,
     encode_alarm_target,
+    split_frames,
 )
 
 DEFAULT_SCAN_TIMEOUT = 10.0
@@ -94,6 +98,14 @@ def _describe_notification(data: bytes | bytearray) -> dict[str, object]:
             "celsius": snapshot.celsius,
         }
 
+    connection = decode_probe_connection(data)
+    if connection is not None:
+        return {
+            "kind": "probe_connection",
+            "probe2": connection.probe2,
+            "probe3": connection.probe3,
+        }
+
     hold_state = decode_hold_state(data)
     if hold_state is not None:
         return {"kind": "hold_state", "held": hold_state.held}
@@ -110,6 +122,14 @@ def _describe_notification(data: bytes | bytearray) -> dict[str, object]:
     if enabled is not None:
         return {"kind": "alarm_enabled", "probe": enabled.probe, "enabled": enabled.enabled}
 
+    device_name = decode_device_name(data)
+    if device_name is not None:
+        return {"kind": "device_name", "name": device_name.name}
+
+    firmware = decode_firmware_version(data)
+    if firmware is not None:
+        return {"kind": "firmware_version", "version": firmware.version}
+
     return {"kind": "unknown"}
 
 
@@ -121,6 +141,11 @@ def _packet_summary(decoded: dict[str, object]) -> str:
         return f"fahrenheit probe_{decoded['probe']} {decoded['fahrenheit']:.1f} F"
     if kind == "probe_snapshot":
         return f"snapshot probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
+    if kind == "probe_connection":
+        present = [
+            f"probe_{n}" for n, on in ((2, decoded["probe2"]), (3, decoded["probe3"])) if on
+        ]
+        return f"connection {', '.join(present) if present else 'probe 1 only'}"
     if kind == "hold_state":
         return f"hold {'on' if decoded['held'] else 'off'}"
     if kind == "display_state":
@@ -129,6 +154,10 @@ def _packet_summary(decoded: dict[str, object]) -> str:
         return f"alarm_target probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
     if kind == "alarm_enabled":
         return f"alarm_enabled probe_{decoded['probe']} {'on' if decoded['enabled'] else 'off'}"
+    if kind == "device_name":
+        return f"device_name {decoded['name']}"
+    if kind == "firmware_version":
+        return f"firmware {decoded['version']}"
     return "unknown"
 
 
@@ -246,12 +275,16 @@ async def cmd_watch(args: argparse.Namespace) -> int:
     latest: dict[str, object] = {}
 
     def on_notify(_sender: object, data: bytearray) -> None:
-        reading = decode_temperature(data)
-        if reading is None:
+        updated = False
+        for frame in split_frames(data):
+            reading = decode_temperature(frame)
+            if reading is None:
+                continue
+            latest[f"probe_{reading.probe}"] = reading.celsius
+            updated = True
+        if not updated:
             return
-        key = f"probe_{reading.probe}"
 
-        latest[key] = reading.celsius
         if args.json:
             print(json.dumps({"address": selected.device.address, "readings": latest}))
         else:
@@ -317,29 +350,32 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
 
     def on_notify(sender: object, data: bytearray) -> None:
         nonlocal packet_count
-        packet_count += 1
         timestamp = datetime.now().isoformat(timespec="milliseconds")
         payload = bytes(data)
-        decoded = _describe_notification(payload)
-        if args.json:
-            print(
-                json.dumps(
-                    {
-                        "timestamp": timestamp,
-                        "packet": packet_count,
-                        "sender": str(sender),
-                        "hex": payload.hex(" "),
-                        "decoded": decoded,
-                    }
-                ),
-                flush=True,
-            )
-        else:
-            print(
-                f"{timestamp} #{packet_count:04d} "
-                f"{_packet_hex(payload, args.color)}  {_packet_summary(decoded)}",
-                flush=True,
-            )
+        # A notification may bundle several frames; print one line per frame.
+        # Fall back to the raw value if nothing parses, so it stays visible.
+        for frame in split_frames(payload) or [payload]:
+            packet_count += 1
+            decoded = _describe_notification(frame)
+            if args.json:
+                print(
+                    json.dumps(
+                        {
+                            "timestamp": timestamp,
+                            "packet": packet_count,
+                            "sender": str(sender),
+                            "hex": frame.hex(" "),
+                            "decoded": decoded,
+                        }
+                    ),
+                    flush=True,
+                )
+            else:
+                print(
+                    f"{timestamp} #{packet_count:04d} "
+                    f"{_packet_hex(frame, args.color)}  {_packet_summary(decoded)}",
+                    flush=True,
+                )
 
         if args.once:
             stop_event.set()
@@ -387,10 +423,10 @@ async def cmd_targets(args: argparse.Namespace) -> int:
     stop_event = asyncio.Event()
 
     def on_notify(_sender: object, data: bytearray) -> None:
-        target = decode_alarm_target(data)
-        if target is None:
-            return
-        targets[target.probe] = target
+        for frame in split_frames(data):
+            target = decode_alarm_target(frame)
+            if target is not None:
+                targets[target.probe] = target
         if len(targets) == 3:
             stop_event.set()
 
@@ -419,10 +455,10 @@ async def cmd_alarm_enabled(args: argparse.Namespace) -> int:
     stop_event = asyncio.Event()
 
     def on_notify(_sender: object, data: bytearray) -> None:
-        state = decode_alarm_enabled(data)
-        if state is None:
-            return
-        enabled[state.probe] = state
+        for frame in split_frames(data):
+            state = decode_alarm_enabled(frame)
+            if state is not None:
+                enabled[state.probe] = state
         if len(enabled) == 3:
             stop_event.set()
 
@@ -455,14 +491,19 @@ async def cmd_set_target(args: argparse.Namespace) -> int:
 
     def on_notify(_sender: object, data: bytearray) -> None:
         nonlocal write_sent
-        target = decode_alarm_target(data)
-        if target is None:
-            return
-        targets[target.probe] = target
+        for frame in split_frames(data):
+            target = decode_alarm_target(frame)
+            if target is None:
+                continue
+            targets[target.probe] = target
+            if (
+                write_sent
+                and target.probe == args.probe
+                and abs(target.celsius - args.celsius) < 0.05
+            ):
+                write_confirmed_event.set()
         if len(targets) == 3:
             initial_targets_event.set()
-        if write_sent and target.probe == args.probe and abs(target.celsius - args.celsius) < 0.05:
-            write_confirmed_event.set()
 
     async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
@@ -501,12 +542,13 @@ async def cmd_set_alarm_enabled(args: argparse.Namespace) -> int:
 
     def on_notify(_sender: object, data: bytearray) -> None:
         nonlocal write_sent
-        state = decode_alarm_enabled(data)
-        if state is None:
-            return
-        enabled[state.probe] = state
-        if write_sent and state.probe == args.probe and state.enabled == desired:
-            confirmed_event.set()
+        for frame in split_frames(data):
+            state = decode_alarm_enabled(frame)
+            if state is None:
+                continue
+            enabled[state.probe] = state
+            if write_sent and state.probe == args.probe and state.enabled == desired:
+                confirmed_event.set()
 
     async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)

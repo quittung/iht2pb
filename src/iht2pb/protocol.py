@@ -11,8 +11,8 @@ INIT_WRITES = (
     (NOTIFY_UUID, b"\x55\xaa\x1a\x01\x00\x1a"),
 )
 
-# Live per-probe streams: even command = Celsius, odd = Fahrenheit.
-# Only probe 1 (0x02/0x03) has been captured; probes 2 and 3 are inferred.
+# Live per-probe streams: even command = Celsius, odd = Fahrenheit, for probes
+# 1/2/3 (commands 0x02-0x07).
 TEMPERATURE_SELECTORS = {0x02: 1, 0x04: 2, 0x06: 3}
 FAHRENHEIT_SELECTORS = {0x03: 1, 0x05: 2, 0x07: 3}
 # One-shot snapshot of probes 1/2/3 (startup burst and rising hold edge).
@@ -26,8 +26,13 @@ ALARM_ENABLE_COMMAND_BY_PROBE = {
 
 HOLD_COMMAND = 0x01
 DISPLAY_COMMAND = 0x0C
+PROBE_CONNECTION_COMMAND = 0x0B
+DEVICE_NAME_COMMAND = 0x16
+FIRMWARE_COMMAND = 0x18
 HOLD_FLAG_BIT = 0x04
 DISPLAY_ON_BIT = 0x10
+PROBE_2_PRESENT_BIT = 0x40
+PROBE_3_PRESENT_BIT = 0x80
 HEADER = b"\x55\xaa"
 
 
@@ -71,8 +76,47 @@ class DisplayState:
     on: bool
 
 
+@dataclass(frozen=True)
+class ProbeConnection:
+    probe2: bool
+    probe3: bool
+
+
+@dataclass(frozen=True)
+class DeviceName:
+    name: str
+
+
+@dataclass(frozen=True)
+class FirmwareVersion:
+    version: str
+
+
 def checksum(payload: bytes | bytearray) -> int:
     return sum(payload) & 0xFF
+
+
+def split_frames(data: bytes | bytearray) -> list[bytes]:
+    """Split a notification value into its individual frames.
+
+    A single notification usually carries one frame, but the device sometimes
+    packs several into one value (see docs/protocol.md). Walk the buffer using
+    each frame's length byte and return the frames that pass validation.
+    """
+    frames: list[bytes] = []
+    pos = 0
+    end = len(data)
+    while pos + 5 <= end:
+        if data[pos] != 0x55 or data[pos + 1] != 0xAA:
+            break
+        frame_end = pos + data[pos + 3] + 5
+        if frame_end > end:
+            break
+        frame = bytes(data[pos:frame_end])
+        if checksum(frame[:-1]) == frame[-1]:
+            frames.append(frame)
+        pos = frame_end
+    return frames
 
 
 def valid_frame(data: bytes | bytearray, payload_length: int | None = None) -> bool:
@@ -92,7 +136,7 @@ def decode_temperature_value(data: bytes | bytearray) -> float | None:
         return None
 
     raw = (data[4] << 8) | data[5]
-    if raw >= 0x8000:  # two's-complement negative (inferred, never captured)
+    if raw >= 0x8000:  # two's-complement negative (sub-zero)
         raw -= 0x10000
     return raw / 10
 
@@ -150,6 +194,32 @@ def decode_display_state(data: bytes | bytearray) -> DisplayState | None:
     if not valid_frame(data, payload_length=1) or data[2] != DISPLAY_COMMAND:
         return None
     return DisplayState(on=bool(data[4] & DISPLAY_ON_BIT))
+
+
+def decode_probe_connection(data: bytes | bytearray) -> ProbeConnection | None:
+    if not valid_frame(data, payload_length=1) or data[2] != PROBE_CONNECTION_COMMAND:
+        return None
+    flags = data[4]
+    return ProbeConnection(
+        probe2=bool(flags & PROBE_2_PRESENT_BIT),
+        probe3=bool(flags & PROBE_3_PRESENT_BIT),
+    )
+
+
+def _decode_ascii_payload(data: bytes | bytearray, command: int) -> str | None:
+    if not valid_frame(data) or data[2] != command:
+        return None
+    return bytes(data[4:-1]).decode("ascii", errors="replace")
+
+
+def decode_device_name(data: bytes | bytearray) -> DeviceName | None:
+    text = _decode_ascii_payload(data, DEVICE_NAME_COMMAND)
+    return DeviceName(name=text) if text is not None else None
+
+
+def decode_firmware_version(data: bytes | bytearray) -> FirmwareVersion | None:
+    text = _decode_ascii_payload(data, FIRMWARE_COMMAND)
+    return FirmwareVersion(version=text) if text is not None else None
 
 
 def decode_alarm_target(data: bytes | bytearray) -> AlarmTarget | None:
