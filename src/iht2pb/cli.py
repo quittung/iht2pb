@@ -7,183 +7,38 @@ import signal
 import sys
 from datetime import datetime
 from collections.abc import Sequence
-from dataclasses import dataclass
 
-from bleak import BleakClient, BleakScanner
-from bleak.backends.device import BLEDevice
-from bleak.backends.scanner import AdvertisementData
+from bleak import BleakClient
 from bleak.exc import BleakError
 
+from .ble import (
+    DEFAULT_SCAN_TIMEOUT,
+    FoundDevice,
+    activate,
+    bleak_target,
+    display_name,
+    found_from_address,
+    scan,
+)
 from .protocol import (
-    INIT_WRITES,
     NOTIFY_UUID,
     WRITE_UUID,
     AlarmEnabled,
     AlarmTarget,
-    decode_activation_echo,
     decode_alarm_enabled,
     decode_alarm_target,
-    decode_device_name,
-    decode_display_state,
-    decode_fahrenheit,
-    decode_firmware_version,
-    decode_hold_state,
-    decode_probe_connection,
-    decode_probe_snapshot,
     decode_temperature,
     encode_alarm_enabled,
     encode_alarm_target,
     split_frames,
-    valid_frame,
 )
-
-DEFAULT_SCAN_TIMEOUT = 10.0
-IHT2PB_NAME_FRAGMENT = "ink@iht-2pb"
-PALETTE = (31, 32, 33, 34, 35, 36, 91, 92, 93, 94, 95, 96)
-
-
-@dataclass(frozen=True)
-class FoundDevice:
-    device: BLEDevice
-    advertisement: AdvertisementData | None
-
-
-def _is_iht2pb(
-    advertisement: AdvertisementData, device: BLEDevice, address: str | None
-) -> bool:
-    if address:
-        return device.address.lower() == address.lower()
-
-    name = (advertisement.local_name or device.name or "").lower()
-    return IHT2PB_NAME_FRAGMENT in name
-
-
-async def _scan(timeout: float, address: str | None = None) -> list[FoundDevice]:
-    discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
-    found: list[FoundDevice] = []
-
-    for device, advertisement in discovered.values():
-        if _is_iht2pb(advertisement, device, address):
-            found.append(FoundDevice(device, advertisement))
-
-    found.sort(
-        key=lambda item: item.advertisement.rssi if item.advertisement else -999,
-        reverse=True,
-    )
-    return found
-
-
-def _format_temperature(value: object) -> str:
-    if isinstance(value, int | float):
-        return f"{value:.1f} C"
-    return str(value)
-
-
-def _describe_notification(data: bytes | bytearray) -> dict[str, object]:
-    reading = decode_temperature(data)
-    if reading is not None:
-        return {"kind": "temperature", "probe": reading.probe, "celsius": reading.celsius}
-
-    fahrenheit = decode_fahrenheit(data)
-    if fahrenheit is not None:
-        return {
-            "kind": "fahrenheit",
-            "probe": fahrenheit.probe,
-            "fahrenheit": fahrenheit.fahrenheit,
-        }
-
-    snapshot = decode_probe_snapshot(data)
-    if snapshot is not None:
-        return {
-            "kind": "probe_snapshot",
-            "probe": snapshot.probe,
-            "celsius": snapshot.celsius,
-        }
-
-    connection = decode_probe_connection(data)
-    if connection is not None:
-        return {
-            "kind": "probe_connection",
-            "probe2": connection.probe2,
-            "probe3": connection.probe3,
-        }
-
-    hold_state = decode_hold_state(data)
-    if hold_state is not None:
-        return {"kind": "hold_state", "held": hold_state.held}
-
-    display_state = decode_display_state(data)
-    if display_state is not None:
-        return {"kind": "display_state", "on": display_state.on}
-
-    target = decode_alarm_target(data)
-    if target is not None:
-        return {"kind": "alarm_target", "probe": target.probe, "celsius": target.celsius}
-
-    enabled = decode_alarm_enabled(data)
-    if enabled is not None:
-        return {"kind": "alarm_enabled", "probe": enabled.probe, "enabled": enabled.enabled}
-
-    device_name = decode_device_name(data)
-    if device_name is not None:
-        return {"kind": "device_name", "name": device_name.name}
-
-    firmware = decode_firmware_version(data)
-    if firmware is not None:
-        return {"kind": "firmware_version", "version": firmware.version}
-
-    if decode_activation_echo(data) is not None:
-        return {"kind": "activation_echo"}
-
-    # Looks like a frame (has the header) but fails validation — truncated or
-    # corrupt. Distinct from a well-formed frame with an unrecognized command.
-    if len(data) >= 2 and data[0] == 0x55 and data[1] == 0xAA and not valid_frame(data):
-        return {"kind": "broken_frame"}
-
-    return {"kind": "unknown"}
-
-
-def _packet_summary(decoded: dict[str, object]) -> str:
-    kind = decoded["kind"]
-    if kind == "temperature":
-        return f"temperature probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
-    if kind == "fahrenheit":
-        return f"fahrenheit probe_{decoded['probe']} {decoded['fahrenheit']:.1f} F"
-    if kind == "probe_snapshot":
-        return f"snapshot probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
-    if kind == "probe_connection":
-        present = [
-            f"probe_{n}" for n, on in ((2, decoded["probe2"]), (3, decoded["probe3"])) if on
-        ]
-        return f"connection {', '.join(present) if present else 'probe 1 only'}"
-    if kind == "hold_state":
-        return f"hold {'on' if decoded['held'] else 'off'}"
-    if kind == "display_state":
-        return f"display {'on' if decoded['on'] else 'off'}"
-    if kind == "alarm_target":
-        return f"alarm_target probe_{decoded['probe']} {_format_temperature(decoded['celsius'])}"
-    if kind == "alarm_enabled":
-        return f"alarm_enabled probe_{decoded['probe']} {'on' if decoded['enabled'] else 'off'}"
-    if kind == "device_name":
-        return f"device_name {decoded['name']}"
-    if kind == "firmware_version":
-        return f"firmware {decoded['version']}"
-    if kind == "activation_echo":
-        return "activation echo"
-    if kind == "broken_frame":
-        return "broken frame"
-    return "unknown"
-
-
-def _colorize(text: str, value: int, enabled: bool) -> str:
-    if not enabled:
-        return text
-    color = PALETTE[value % len(PALETTE)]
-    return f"\033[{color}m{text}\033[0m"
-
-
-def _packet_hex(data: bytes, color: bool) -> str:
-    return " ".join(_colorize(f"{byte:02x}", byte, color) for byte in data)
+from .render import (
+    describe_notification,
+    format_temperature,
+    packet_hex,
+    packet_summary,
+    recording_frame_bytes,
+)
 
 
 def _print_scan_result(found: FoundDevice) -> None:
@@ -196,22 +51,14 @@ def _print_scan_result(found: FoundDevice) -> None:
 
 async def _find_one(args: argparse.Namespace) -> FoundDevice | None:
     timeout = getattr(args, "scan_timeout", getattr(args, "timeout", DEFAULT_SCAN_TIMEOUT))
-    found = await _scan(timeout, args.address)
+    found = await scan(timeout, args.address)
     if not found:
         if args.address:
-            return FoundDevice(BLEDevice(args.address, None, {}), None)
+            return found_from_address(args.address)
         target = f" at {args.address}" if args.address else ""
         print(f"No IHT-2PB device found{target}.", file=sys.stderr)
         return None
     return found[0]
-
-
-async def _activate(client: BleakClient) -> None:
-    for char_uuid, payload in INIT_WRITES:
-        try:
-            await client.write_gatt_char(char_uuid, payload, response=False)
-        except BleakError:
-            pass
 
 
 def _print_targets(address: str, targets: dict[int, AlarmTarget], as_json: bool) -> None:
@@ -254,14 +101,8 @@ def _print_alarm_enabled(
         print(f"probe_{probe}: {'on' if state.enabled else 'off'}")
 
 
-def _bleak_target(found: FoundDevice) -> BLEDevice | str:
-    if found.advertisement is None:
-        return found.device.address
-    return found.device
-
-
 async def cmd_scan(args: argparse.Namespace) -> int:
-    found = await _scan(args.timeout, args.address)
+    found = await scan(args.timeout, args.address)
     if not found:
         target = f" at {args.address}" if args.address else ""
         print(f"No IHT-2PB device found{target}.", file=sys.stderr)
@@ -277,11 +118,7 @@ async def cmd_watch(args: argparse.Namespace) -> int:
     if selected is None:
         return 1
 
-    name = (
-        (selected.advertisement.local_name if selected.advertisement else None)
-        or selected.device.name
-        or selected.device.address
-    )
+    name = display_name(selected)
     print(f"Connecting to {name} ({selected.device.address})...", file=sys.stderr)
 
     stop_event = asyncio.Event()
@@ -303,7 +140,7 @@ async def cmd_watch(args: argparse.Namespace) -> int:
             print(json.dumps({"address": selected.device.address, "readings": latest}))
         else:
             rendered = ", ".join(
-                f"{key}: {_format_temperature(value)}"
+                f"{key}: {format_temperature(value)}"
                 for key, value in sorted(latest.items())
             )
             print(rendered)
@@ -322,12 +159,12 @@ async def cmd_watch(args: argparse.Namespace) -> int:
         disconnected_event.set()
 
     async with BleakClient(
-        _bleak_target(selected),
+        bleak_target(selected),
         disconnected_callback=on_disconnect,
         timeout=args.connect_timeout,
     ) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
-        await _activate(client)
+        await activate(client)
 
         wait_tasks = [
             asyncio.create_task(stop_event.wait()),
@@ -350,11 +187,7 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
     if selected is None:
         return 1
 
-    name = (
-        (selected.advertisement.local_name if selected.advertisement else None)
-        or selected.device.name
-        or selected.device.address
-    )
+    name = display_name(selected)
     print(f"Connecting to {name} ({selected.device.address})...", file=sys.stderr)
     print("Every notification will be printed.", file=sys.stderr)
 
@@ -370,7 +203,7 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
         # Fall back to the raw value if nothing parses, so it stays visible.
         for frame in split_frames(payload) or [payload]:
             packet_count += 1
-            decoded = _describe_notification(frame)
+            decoded = describe_notification(frame)
             if args.json:
                 print(
                     json.dumps(
@@ -387,7 +220,7 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
             else:
                 print(
                     f"{timestamp} #{packet_count:04d} "
-                    f"{_packet_hex(frame, args.color)}  {_packet_summary(decoded)}",
+                    f"{packet_hex(frame, args.color)}  {packet_summary(decoded)}",
                     flush=True,
                 )
 
@@ -405,12 +238,12 @@ async def cmd_raw_watch(args: argparse.Namespace) -> int:
         disconnected_event.set()
 
     async with BleakClient(
-        _bleak_target(selected),
+        bleak_target(selected),
         disconnected_callback=on_disconnect,
         timeout=args.connect_timeout,
     ) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
-        await _activate(client)
+        await activate(client)
 
         wait_tasks = [
             asyncio.create_task(stop_event.wait()),
@@ -444,9 +277,9 @@ async def cmd_targets(args: argparse.Namespace) -> int:
         if len(targets) == 3:
             stop_event.set()
 
-    async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
+    async with BleakClient(bleak_target(selected), timeout=args.connect_timeout) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
-        await _activate(client)
+        await activate(client)
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=args.duration)
         except TimeoutError:
@@ -476,9 +309,9 @@ async def cmd_alarm_enabled(args: argparse.Namespace) -> int:
         if len(enabled) == 3:
             stop_event.set()
 
-    async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
+    async with BleakClient(bleak_target(selected), timeout=args.connect_timeout) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
-        await _activate(client)
+        await activate(client)
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=args.duration)
         except TimeoutError:
@@ -519,9 +352,9 @@ async def cmd_set_target(args: argparse.Namespace) -> int:
         if len(targets) == 3:
             initial_targets_event.set()
 
-    async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
+    async with BleakClient(bleak_target(selected), timeout=args.connect_timeout) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
-        await _activate(client)
+        await activate(client)
         try:
             await asyncio.wait_for(initial_targets_event.wait(), timeout=2.0)
         except TimeoutError:
@@ -564,9 +397,9 @@ async def cmd_set_alarm_enabled(args: argparse.Namespace) -> int:
             if write_sent and state.probe == args.probe and state.enabled == desired:
                 confirmed_event.set()
 
-    async with BleakClient(_bleak_target(selected), timeout=args.connect_timeout) as client:
+    async with BleakClient(bleak_target(selected), timeout=args.connect_timeout) as client:
         await client.start_notify(NOTIFY_UUID, on_notify)
-        await _activate(client)
+        await activate(client)
         await asyncio.sleep(0.5)
         write_sent = True
         try:
@@ -583,33 +416,6 @@ async def cmd_set_alarm_enabled(args: argparse.Namespace) -> int:
     else:
         print(f"probe_{args.probe}: {'on' if enabled[args.probe].enabled else 'off'}")
     return 0
-
-
-def _is_hex_byte(token: str) -> bool:
-    return len(token) == 2 and all(c in "0123456789abcdefABCDEF" for c in token)
-
-
-def _recording_frame_bytes(line: str) -> tuple[str | None, bytes | None]:
-    """Extract an optional leading timestamp and the run of hex bytes from a line.
-
-    Anything before the hex (a timestamp, a `#0001` packet number) is skipped and
-    anything after it (a human comment) is ignored, so both the raw and the
-    annotated recording formats parse. Returns (timestamp, data); data is None
-    when the line has no hex bytes.
-    """
-    tokens = line.split()
-    timestamp = tokens[0] if tokens and not _is_hex_byte(tokens[0]) else None
-    hex_tokens: list[str] = []
-    started = False
-    for token in tokens:
-        if _is_hex_byte(token):
-            hex_tokens.append(token)
-            started = True
-        elif started:
-            break
-    if not hex_tokens:
-        return timestamp, None
-    return timestamp, bytes.fromhex("".join(hex_tokens))
 
 
 async def cmd_decode(args: argparse.Namespace) -> int:
@@ -633,12 +439,12 @@ async def cmd_decode(args: argparse.Namespace) -> int:
                     if not stripped:
                         print(file=sink)
                         continue
-                    timestamp, data = _recording_frame_bytes(line)
+                    timestamp, data = recording_frame_bytes(line)
                     if data is None:
                         continue
                     for frame in split_frames(data) or [data]:
                         counter += 1
-                        decoded = _describe_notification(frame)
+                        decoded = describe_notification(frame)
                         if args.json:
                             print(
                                 json.dumps(
@@ -655,7 +461,7 @@ async def cmd_decode(args: argparse.Namespace) -> int:
                             prefix = f"{timestamp} " if timestamp else ""
                             print(
                                 f"{prefix}#{counter:04d} "
-                                f"{_packet_hex(frame, args.color)}  {_packet_summary(decoded)}",
+                                f"{packet_hex(frame, args.color)}  {packet_summary(decoded)}",
                                 file=sink,
                             )
             finally:
